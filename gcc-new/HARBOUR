@@ -1,0 +1,116 @@
+#
+# Copyright (c) 2013 Vojtech Horky
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+# - The name of the author may not be used to endorse or promote products
+#   derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+shipname=gcc
+shipversion=8.2.0
+_shipversion=8_2_0
+
+shipsources="https://github.com/HelenOS/${shipname}/archive/${_shipversion}-helenos.zip"
+shiptugs="libgmp libmpfr libmpc libisl zlib"
+shipfunnels=4
+
+build() {
+	run unzip ${_shipversion}-helenos.zip
+	run cp $HSCT_CONFIG_SUB "${shipname}-${_shipversion}-helenos/config.sub"
+
+	# HelenOS does not have its own unwind.h. Luckily,
+	# we may use the one provided by GCC itself.
+	#msg "Fixing unwind.h..."
+	#run mkdir -p include
+	#run cp ${shipname}-${_shipversion}-helenos/gcc/unwind-generic.h include/unwind.h
+
+	# Prevent building documentation
+	# (there is a problem with newer version of texinfo?)
+	#sed 's/^BUILD_INFO[ \t]*=.*/BUILD_INFO = /g' -i ${shipname}-${_shipversion}-helenos/gcc/Makefile.in
+
+	msg "Building..."
+
+	# Out-of-source build is recommended for GCC
+	run mkdir -p build
+	cd build
+
+	# This is extremely crippled version but it at least compiles
+
+	run ../${shipname}-${_shipversion}-helenos/configure \
+		$HSCT_CONFIGURE_ARGS \
+		--target="$HSCT_CCROSS_TARGET" \
+		--program-prefix="" \
+		--disable-werror \
+		--without-ppl \
+		--without-cloog \
+		--disable-mudflap \
+		--disable-libmudflap \
+		--disable-libgomp \
+		--disable-gomp \
+		--with-system-zlib \
+		--without-headers \
+		--disable-shared \
+		--enable-languages=c \
+		--disable-checking \
+		--disable-lto \
+		--disable-threads \
+		--disable-nls \
+		--disable-libssp \
+		--disable-libquadmath \
+		--enable-decimal-float=dpd \
+		--disable-multilib \
+		--disable-multiarch \
+		--disable-libstdcxx-pch \
+		--disable-libunwind-exceptions \
+		--with-gnu-as \
+		--with-gnu-ld \
+		CC_FOR_TARGET="$HSCT_TARGET-cc" \
+		CXX_FOR_TARGET="$HSCT_TARGET-cxx" \
+		GCC_FOR_TARGET="$HSCT_TARGET-cc" \
+		AR_FOR_TARGET="$HSCT_TARGET-ar" \
+		AS_FOR_TARGET="$HSCT_TARGET-as" \
+		LD_FOR_TARGET="$HSCT_TARGET-ld" \
+		NM_FOR_TARGET="$HSCT_TARGET-nm" \
+		OBJDUMP_FOR_TARGET="$HSCT_TARGET-objdump" \
+		RANLIB_FOR_TARGET="$HSCT_TARGET-ranlib" \
+		STRIP_FOR_TARGET="$HSCT_TARGET-strip"
+
+	run make all-gcc -j$shipfunnels STATIC_ONLY=y
+}
+
+package() {
+	cd build
+	run make install-gcc "DESTDIR=$PWD/PKG"
+
+	# Copy the executables
+	run mkdir -p "$HSCT_MY_DIR/app/"
+	for app in gcc cpp gcov; do
+		run cp PKG/usr/local/bin/$app "$HSCT_MY_DIR/app/"
+	done
+	run cp PKG/usr/local/libexec/gcc/*/$shipversion/cc1 "$HSCT_MY_DIR/app/"
+
+	# Create default SPECS file to drive the compilation
+	run mkdir -p "$HSCT_MY_DIR/lib/gcc/$HSCT_CCROSS_TARGET/$shipversion/"
+	# FIXME: This is a temporary hack. We should be building the helenos target.
+	$HSCT_TARGET-cc -dumpspecs > "$HSCT_MY_DIR/lib/gcc/$HSCT_CCROSS_TARGET/$shipversion/specs"
+}

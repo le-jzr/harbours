@@ -28,5 +28,6 @@ if $running_pp; then
 elif $running_cc; then
 	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CC $HSCT_CPPFLAGS $HSCT_CFLAGS "$@"
 else
+	# FIXME: -nostdlib prevents GCC providing the libraries from specsfile.
 	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CC $HSCT_CPPFLAGS $HSCT_CFLAGS $HSCT_LDFLAGS "$@" $HSCT_LDLIBS
 fi

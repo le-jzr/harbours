@@ -6,7 +6,7 @@
 # unused 
 
 run_it() {
-	# echo "[CXX $PWD]:" "$@"
+	echo "[CXX $PWD]:" "$@"
 	exec "$@"
 }
 
@@ -24,9 +24,9 @@ done
 
 # ...and pass the correct flags
 if $running_pp; then
-	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CXX $HSCT_CPPFLAGS "$@"
+	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CXX $HSCT_CXXPPFLAGS "$@"
 elif $running_cc; then
-	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CXX $HSCT_CPPFLAGS $HSCT_CXXFLAGS "$@"
+	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CXX $HSCT_CXXPPFLAGS $HSCT_CXXFLAGS -Wno-narrowing "$@"
 else
-	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CXX $HSCT_CPPFLAGS $HSCT_CXXFLAGS $HSCT_LDFLAGS "$@" $HSCT_LDLIBS
+	run_it $HELENOS_CROSS_PATH/$HSCT_REAL_CXX $HSCT_CXXPPFLAGS $HSCT_CXXFLAGS -Wno-narrowing $HSCT_LDFLAGS "$@" $HSCT_LDLIBS
 fi
